@@ -6,11 +6,11 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const server = http.createServer(app);
-
-// Allow frontend origin
 app.use(cors());
 
+const server = http.createServer(app);
+
+// ✅ This line MUST come after `server` is created
 const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173", // Frontend dev server
@@ -18,7 +18,7 @@ const io = new Server(server, {
   }
 });
 
-// Socket.IO logic
+// 🔌 Socket.IO connection handler
 io.on('connection', (socket) => {
   console.log(`🟢 User connected: ${socket.id}`);
 
@@ -27,9 +27,16 @@ io.on('connection', (socket) => {
     console.log(`User ${socket.id} joined room ${room}`);
   });
 
-  socket.on('sendMessage', ({ room, message }) => {
-    console.log(`Message in ${room}: ${message}`);
-    io.to(room).emit('receiveMessage', { message, sender: socket.id });
+  socket.on('sendMessage', async ({ room, message }) => {
+    const saveMessage = require('./db/saveMessage'); // Lazy require to avoid circular import
+    const data = {
+      chatRoomId: room,
+      senderId: socket.id,
+      message
+    };
+
+    await saveMessage(data);
+    io.to(room).emit('receiveMessage', data);
   });
 
   socket.on('disconnect', () => {

@@ -2,40 +2,45 @@
 import { useEffect, useState } from 'react';
 import io from 'socket.io-client';
 
-const socket = io('http://localhost:5000'); // Backend server
+const socket = io('http://localhost:5000'); // backend address
 
 function App() {
   const [message, setMessage] = useState('');
-  const [room, setRoom] = useState('general');
-  const [messages, setMessages] = useState([]);
+  const [chat, setChat] = useState([]);
 
   useEffect(() => {
-    socket.emit('joinRoom', room);
-    socket.on('receiveMessage', (data) => {
-      setMessages((prev) => [...prev, data]);
+    socket.on('chat message', (msg) => {
+      setChat((prev) => [...prev, msg]);
     });
-  }, [room]);
 
-  const handleSend = () => {
-    socket.emit('sendMessage', { room, message });
-    setMessage('');
+    return () => {
+      socket.off('chat message');
+    };
+  }, []);
+
+  const sendMessage = (e) => {
+    e.preventDefault();
+    if (message.trim()) {
+      socket.emit('chat message', message);
+      setMessage('');
+    }
   };
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>Room: {room}</h2>
-      <input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="Room name" />
-      <div style={{ marginTop: 20 }}>
+      <h2>🔴 Real-Time Chat</h2>
+      <form onSubmit={sendMessage}>
         <input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Message"
+          placeholder="Type your message..."
         />
-        <button onClick={handleSend}>Send</button>
-      </div>
-      <ul style={{ marginTop: 20 }}>
-        {messages.map((msg, i) => (
-          <li key={i}>{msg.sender}: {msg.message}</li>
+        <button type="submit">Send</button>
+      </form>
+
+      <ul>
+        {chat.map((msg, i) => (
+          <li key={i}>{msg}</li>
         ))}
       </ul>
     </div>
