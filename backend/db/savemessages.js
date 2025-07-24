@@ -1,5 +1,5 @@
 // backend/db/saveMessage.js
-const docClient = require("../awsClient");
+const docClient = require("../awsClient.mjs");
 const { PutCommand } = require("@aws-sdk/lib-dynamodb");
 
 async function saveMessage({ chatRoomId, senderId, message }) {
