@@ -5,8 +5,8 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 const client = new DynamoDBClient({
   region: "us-east-1", // ✅ Change to your region
   credentials: {
-    accessKeyId: "AKIASJLFNQYH5RHAPDFP",    // ⚠️ Replace
-    secretAccessKey: "eW56KWtYhtfTIh61jIHyuI81zRbodN4ZTN5bhS+T",   // ⚠️ Replace
+    accessKeyId: "",    // ⚠️ Replace
+    secretAccessKey: "",   // ⚠️ Replace
   },
 });
 
