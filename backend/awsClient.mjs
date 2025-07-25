@@ -1,14 +1,20 @@
-// backend/dynamoClient.js
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+// awsClient.mjs
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import dotenv from 'dotenv';
 
-const client = new DynamoDBClient({
-  region: "us-east-1", // ✅ Change to your region
+// Load environment variables
+dotenv.config();
+
+const REGION = process.env.AWS_REGION;
+
+const ddbClient = new DynamoDBClient({
+  region: REGION,
   credentials: {
-    accessKeyId: "",    // ⚠️ Replace
-    secretAccessKey: "",   // ⚠️ Replace
-  },
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
 });
 
-const ddbDocClient = DynamoDBDocumentClient.from(client);
+const ddbDocClient = DynamoDBDocumentClient.from(ddbClient);
 export default ddbDocClient;
