@@ -1,99 +1,144 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
 
 const socket = io('http://localhost:5000');
 
 function App() {
-  const [username, setUsername] = useState('');
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
+  const [username, setUsername] = useState('');
+  const [room, setRoom] = useState('general');
+  const [typingStatus, setTypingStatus] = useState('');
+  const [isJoined, setIsJoined] = useState(false);
+  const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
-  // Ask for notification permission
   useEffect(() => {
-    if (Notification.permission !== 'granted') {
-      Notification.requestPermission();
-    }
-  }, []);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  // Ask for name on first load
   useEffect(() => {
-    const savedName = localStorage.getItem('chatUsername');
-    if (savedName) {
-      setUsername(savedName);
-    } else {
-      const name = prompt('Enter your name:') || 'Anonymous';
-      setUsername(name);
-      localStorage.setItem('chatUsername', name);
-    }
-  }, []);
+    if (isJoined) {
+      socket.emit('join', { username, room });
 
-  // Listen for incoming messages
+      fetch(`http://localhost:5000/messages?room=${room}`)
+        .then((res) => res.json())
+        .then((data) => setMessages(data));
+    }
+  }, [isJoined, room, username]);
+
   useEffect(() => {
     socket.on('chat message', (msg) => {
       setMessages((prev) => [...prev, msg]);
+    });
 
-      if (
-        Notification.permission === 'granted' &&
-        msg.username !== username
-      ) {
-        new Notification(`💬 ${msg.username}`, {
-          body: msg.message,
-        });
+    socket.on('typing', (name) => {
+      if (name !== username) {
+        setTypingStatus(`${name} is typing...`);
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setTypingStatus(''), 2000);
       }
     });
 
-    return () => socket.off('chat message');
+    return () => {
+      socket.off('chat message');
+      socket.off('typing');
+    };
   }, [username]);
 
   const sendMessage = (e) => {
     e.preventDefault();
-    if (message.trim()) {
-      socket.emit('chat message', {
-        username,
-        message,
-      });
-      setMessage('');
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    const msgObj = {
+      text: trimmed,
+      username,
+      room,
+      timestamp: new Date().toISOString(),
+    };
+    socket.emit('chat message', msgObj);
+    setMessage('');
+  };
+
+  const handleTyping = () => {
+    socket.emit('typing', username);
+  };
+
+  const handleJoin = (e) => {
+    e.preventDefault();
+    if (username.trim() && room.trim()) {
+      setIsJoined(true);
     }
   };
 
-  const handleChangeName = () => {
-    const newName = prompt('Enter your new name:');
-    if (newName) {
-      setUsername(newName);
-      localStorage.setItem('chatUsername', newName);
-    }
+  const handleChangeRoom = () => {
+    setIsJoined(false);
+    setMessages([]);
+    setRoom('general');
   };
+
+  if (!isJoined) {
+    return (
+      <div className="chat-box">
+        <div className="chat-header">Join Chat Room</div>
+        <form className="message-form" onSubmit={handleJoin}>
+          <input
+            type="text"
+            placeholder="Enter your name..."
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Enter room name..."
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+          />
+          <button type="submit">Join</button>
+        </form>
+      </div>
+    );
+  }
 
   return (
-    <div className="chat-container">
+    <div className="chat-box">
       <div className="chat-header">
-        <h1>💬 Chat App</h1>
-        <button className="change-name" onClick={handleChangeName}>
-          Change Name
+        <span>💬 Room: {room}</span>
+        <button className="change-name-btn" onClick={handleChangeRoom}>
+          Change Room
         </button>
       </div>
 
-      <ul className="messages">
-        {messages.map((msg, idx) => (
-          <li
-            key={idx}
-            className={`message ${
-              msg.username === username ? 'self' : 'other'
-            }`}
+      <div className="chat-messages">
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`message ${msg.username === username ? 'self' : 'other'}`}
           >
-            <span className="sender">{msg.username}</span>
-            {msg.message}
-          </li>
+            <div className="message-header">
+              <strong>{msg.username}</strong>
+              <span className="timestamp">
+                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            <div className="message-text">{msg.text}</div>
+          </div>
         ))}
-      </ul>
+        <div ref={messagesEndRef} />
+      </div>
+
+      {typingStatus && <div className="typing-status">{typingStatus}</div>}
 
       <form className="message-form" onSubmit={sendMessage}>
         <input
           type="text"
-          value={message}
           placeholder="Type your message..."
-          onChange={(e) => setMessage(e.target.value)}
+          value={message}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            handleTyping();
+          }}
         />
         <button type="submit">Send</button>
       </form>
